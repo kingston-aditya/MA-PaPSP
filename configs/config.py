@@ -19,8 +19,8 @@ def get_config():
         "SA_number": 4,
         "CA_number": 2,
         "pipeline": 1,
-        "coco_train_data":"",
-        "coco_label_data":"",
+        "coco_train_data":"/data/aditya/coco_embeds/coco_img_feat_1.npy",
+        "coco_label_data":"/data/aditya/coco_embeds/coco_txt_feat_1.npy",
         "cc12m_img_folder":"",
         "cc12m_txt_folder":""
     }

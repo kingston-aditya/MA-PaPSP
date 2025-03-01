@@ -11,7 +11,6 @@ import sys
 sys.path.insert(1, conf["repo_dir"])
 from utils.run_clip import clip_embeds
 
-
 try:
     from torchvision.transforms import InterpolationMode
     BICUBIC = InterpolationMode.BICUBIC
