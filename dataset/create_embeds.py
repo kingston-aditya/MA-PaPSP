@@ -4,8 +4,10 @@ import numpy as np
 from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize
 import os
 from config import get_config
+
+conf = get_config()
 import sys
-sys.path.insert(1, "/data/aditya/JANe/")
+sys.path.insert(1, conf["home_dir"])
 from utils.run_clip import clip_embeds
 
 
