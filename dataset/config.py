@@ -5,7 +5,6 @@ import os
 # out_pth - output path - creates .npy files
 def get_config():
     return {
-        "home_dir":"/data/aditya/JANe/",
-        "fil_pth": "/mnt/ssd/",
-        "out_pth": "/mnt/ssd/"
+        "repo_dir":"/data/home/shlokmishra/JANe/",
+        "out_pth": "/data/home/shlokmishra/"
     }

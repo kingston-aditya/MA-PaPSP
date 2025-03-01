@@ -17,8 +17,7 @@ class clip_embeds(object):
         return image_features.cpu().detach().numpy()
     
     def forward_txt(self, txt):
-        txt_tokens = clip.tokenize(txt)
-        txt_features = self.clip_model.encode_text(torch.Tensor(txt_tokens).to(self.device))
+        txt_features = self.clip_model.encode_text(torch.Tensor(txt).to(self.device))
         txt_features = txt_features / txt_features.norm(dim=-1, keepdim=True)
         return txt_features.cpu().detach().numpy()
 
