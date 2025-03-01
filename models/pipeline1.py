@@ -12,7 +12,7 @@ class pipeline1(nn.Module):
     
     def forward(self, x, y, rx, ry):
         # get lower triangular mask
-        trg_len = y.shape[1]
+        trg_len = y.shape[-1]
         mask = torch.tril(torch.ones((trg_len, trg_len))).expand(1, trg_len, trg_len)
         mask = mask.to("cuda")
 

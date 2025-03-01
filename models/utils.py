@@ -2,28 +2,6 @@ import torch
 import torch.nn as nn
 import math
 
-class retrieve_XY(object):
-    def __init__(self,Xr,Yr,k):
-        super(retrieve_XY,self).__init__()
-        self.device = torch.device('cuda')
-        self.Xr = torch.from_numpy(Xr).float().to(self.device)
-        self.Yr = torch.from_numpy(Yr).float().to(self.device)
-        self.k = k
-
-    def retrieve_X(self,q):
-        q = torch.from_numpy(q).float().to(self.device)
-        ans = torch.matmul(self.Xr,q)
-        _,ind = torch.topk(ans,self.k)
-        ind = ind.cpu().detach().numpy()
-        return ind
-
-    def retrieve_Y(self,q):
-        q = torch.from_numpy(q).float().to(self.device)
-        ans = torch.matmul(self.Yr,q)
-        _,ind = torch.topk(ans,self.k)
-        ind = ind.cpu().detach().numpy()
-        return ind  
-
 class CrossAttention(nn.Module):
     def __init__(self, embed_size, heads):
         super(CrossAttention, self).__init__()
