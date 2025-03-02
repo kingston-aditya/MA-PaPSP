@@ -10,6 +10,7 @@ conf = get_config()
 import sys
 sys.path.insert(1, conf["repo_dir"])
 from utils.run_clip import clip_embeds
+import pdb 
 
 try:
     from torchvision.transforms import InterpolationMode
@@ -35,13 +36,16 @@ def load_img(pth, form_ten):
 def main(config, batch):
     a = {}; b= {}
     clip_model = clip_embeds()
-    for i in range(len(batch["image"])):
+    for i, curr_batch in enumerate(batch):
+    # for i in range(len(batch["image"])):
         # get image embedding
-        img_emd = clip_model.forward_img(batch["image"][i])
+        pdb.set_trace()
+        # img_emd = clip_model.forward_img(curr_batch["image"][i])
+        img_emd = clip_model.forward_img(curr_batch["image"])
         a[i] = img_emd.reshape(1,512)
 
         # get text embedding
-        txt_emd = clip_model.forward_txt(batch["caption"][i])
+        txt_emd = clip_model.forward_txt(curr_batch["caption"][i])
         b[i] = txt_emd.reshape(1,512)
 
         # save files based on numbers
@@ -57,7 +61,21 @@ if __name__ == "__main__":
     # fil_img_lst = [os.path.join(d["fil_pth"],i) for i in sorted(os.listdir(d["fil_pth"])) if i[-4:]=='.jpg']
     # fil_txt_lst = [os.path.join(d["fil_pth"],i) for i in sorted(os.listdir(d["fil_pth"])) if i[-4:]=='.txt']
     config = get_config()
-    batch = return_cc12_train_dataset()
+    dataset_train = return_cc12_train_dataset()
+    sampler_train = torch.utils.data.DistributedSampler(
+        dataset_train, num_replicas=num_tasks, rank=global_rank, shuffle=True
+    )
+    print("Sampler_train = %s" % str(sampler_train))
+
+    data_loader_train = torch.utils.data.DataLoader(
+        dataset_train, sampler=sampler_train,
+        batch_size=args.batch_size,
+        num_workers=args.num_workers,
+        pin_memory=args.pin_mem,
+        drop_last=True,
+    )
+    # import pdb 
+    # pdb.set_trace()
     main(config, batch)
 
 

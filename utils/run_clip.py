@@ -24,7 +24,8 @@ class clip_embeds(object):
         # size = 1 x (# of tokens) x embed size
 
     def forward_txt(self, txt):
-        tokens = self.tokenizer(txt,return_tensors="pt", padding=True, truncation=True)
+        # tokens = self.tokenizer(txt,return_tensors="pt", padding=True, truncation=True)
+        tokens = txt
         tokens.to(self.device)
         with torch.no_grad():
             output = self.clip_txt_model(**tokens)

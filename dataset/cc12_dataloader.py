@@ -6,6 +6,7 @@ import io
 import torchvision.transforms as v2
 from datasets import Image
 from tokenizer import SimpleTokenizer
+import pdb
 
 tokenizer = SimpleTokenizer()
 
@@ -20,6 +21,8 @@ image_transform = v2.Compose(
 
 def t2i_process_fn(batch):
     images = batch["image"]
+    # pdb.set_trace()
+    # print(batch.keys())
     captions = batch["caption"]
     batch_size = len(images)
     # print("batch_size",batch_size)
