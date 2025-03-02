@@ -22,7 +22,11 @@ def get_config():
         "coco_train_data":"/data/aditya/coco_embeds/coco_img_feat_1.npy",
         "coco_label_data":"/data/aditya/coco_embeds/coco_txt_feat_1.npy",
         "cc12m_img_folder":"",
-        "cc12m_txt_folder":""
+        "cc12m_txt_folder":"",
+        "retrieval_size": 10,
+        "FEx": 0.8,
+        "drop":0.2,
+        "heads": 8
     }
 
 def get_weights_file_name(config, epoch):

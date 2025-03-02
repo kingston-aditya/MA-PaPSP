@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import numpy as np
+import sys
+sys.path.insert(1, "/data/aditya/JANe/models/")
 from utils import CrossAttentionLayer, SelfAttentionLayer, FCNNBlock
 
 class pipeline1(nn.Module):

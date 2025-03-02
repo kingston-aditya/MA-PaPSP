@@ -1,7 +1,8 @@
 import torch
 import numpy as np
-import os
-from ..configs.config import get_config
+import sys
+sys.path.insert(1, "/data/aditya/JANe/")
+from configs.config import get_config
 
 config = get_config()
 
@@ -26,7 +27,7 @@ class run_retrieval(object):
         return self.Xr[ind], self.Yr[ind]
 
     def retrieve_Y(self,q,k):
-        q = torch.from_numpy(q).float().to(self.device)
+        q = q.to(self.device)
         ans = torch.matmul(self.Yr,q)
         _,ind = torch.topk(ans, k)
         ind = ind.cpu().detach().numpy()
@@ -41,6 +42,6 @@ class find_retrieved_items(object):
         a = []; b=[]
         for i in range(X.shape[0]):
             Xr, Yr = self.ret_obj.retrieve_Y(X[i,:], k)
-            a.append(Xr); b.append(Yr)
+            a.append(Xr.cpu().detach().numpy()); b.append(Yr.cpu().detach().numpy())
         return np.asarray(a).reshape(X.shape[0], self.k, -1), np.asarray(b).reshape(X.shape[0], self.k, -1)
 

@@ -4,6 +4,10 @@ import torch.nn as nn
 from models import pipeline1, pipeline2, pipeline3
 from configs.config import get_config, get_weights_file_name
 from tqdm import tqdm
+from torch.utils.data import DataLoader
+import sys
+sys.path.insert(1, "/data/aditya/JANe/")
+from dataset.dataset import COCO_CC12M
 
 def train(model, config):
     # define the device
@@ -11,7 +15,7 @@ def train(model, config):
     print("Using device", device)
 
     # load dataset
-    train_dataloader, = 
+    train_dataloader = DataLoader(COCO_CC12M(config["retrieval_size"]), batch_size=64, shuffle=True)
 
     # get the pipeline ready
     optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"], eps=1e-9)
@@ -26,7 +30,7 @@ def train(model, config):
             X = batch["input"].to(device)
             Y = batch["output"].to(device)
             RX = batch["ret_input"].to(device)
-            RY = batch["ret_input"].to(device)
+            RY = batch["ret_output"].to(device)
             
             # make prediction
             out = model.forward(X, Y, RX, RY)
@@ -41,23 +45,24 @@ def train(model, config):
             optimizer.zero_grad()
         
         # save the model
-        model_filename = get_weights_file_name(config, f'{epoch:02d}')
-        torch.save({
-            'epoch': epoch,
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict() 
-        }, model_filename)
+        if epoch%20 ==0:
+            model_filename = get_weights_file_name(config, f'{epoch:02d}')
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict() 
+            }, model_filename)
 
 if __name__ == "__main__":
     config = get_config()
 
     # get model
     if config["pipeline"] == 1:
-        model = pipeline1.pipeline1(config["embed_size"], config["SA_number"], config["CA_number"])
+        model = pipeline1.pipeline1(config["embed_size"], config["SA_number"], config["CA_number"], config["heads"], config["FEx"], config["drop"])
     elif config["pipeline"] == 2:
-        model = pipeline2.pipeline2(config["embed_size"], config["SA_number"], config["CA_number"])
+        model = pipeline2.pipeline2(config["embed_size"], config["SA_number"], config["CA_number"], config["heads"], config["FEx"], config["drop"])
     elif config["pipeline"] == 3:
-        model = pipeline3.pipeline3(config["embed_size"], config["SA_number"], config["CA_number"])
+        model = pipeline3.pipeline3(config["embed_size"], config["SA_number"], config["CA_number"], config["heads"], config["FEx"], config["drop"])
     else:
         print("NOT a NUMBER")
 

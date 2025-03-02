@@ -61,9 +61,9 @@ class CrossAttentionBlock(nn.Module):
         self.norm2 = nn.LayerNorm(embed_size)
 
         self.ffn = nn.Sequential(
-            nn.Linear(embed_size, forward_expansion*embed_size),
+            nn.Linear(embed_size, int(forward_expansion*embed_size)),
             nn.ReLU(),
-            nn.Linear(forward_expansion*embed_size, embed_size)
+            nn.Linear(int(forward_expansion*embed_size), embed_size)
             )
         
         self.dropout = nn.Dropout(dropout)
