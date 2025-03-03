@@ -43,5 +43,5 @@ class find_retrieved_items(object):
         for i in range(X.shape[0]):
             Xr, Yr = self.ret_obj.retrieve_Y(X[i,:], k)
             a.append(Xr.cpu().detach().numpy()); b.append(Yr.cpu().detach().numpy())
-        return np.asarray(a).reshape(X.shape[0], self.k, -1), np.asarray(b).reshape(X.shape[0], self.k, -1)
+        return np.asarray(a).reshape(X.shape[0], k, -1), np.asarray(b).reshape(X.shape[0], k, -1)
 

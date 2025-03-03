@@ -10,23 +10,12 @@ import os
 
 def get_config():
     return {
-        "batch_size": 10,
-        "num_epochs": 20,
-        "lr": 10**-4,
+        "batch_size": 200,
         "embed_size": 512,
-        "model_folder": "/data/aditya/weights/",
-        "model_filename": "tmodel_",
-        "SA_number": 4,
-        "CA_number": 2,
-        "pipeline": 1,
-        "coco_train_data":"/data/aditya/coco_embeds/coco_img_feat_1.npy",
-        "coco_label_data":"/data/aditya/coco_embeds/coco_txt_feat_1.npy",
-        "cc12m_img_folder":"",
-        "cc12m_txt_folder":"",
+        "repo_dir":"/data/aditya/JANe/",
         "retrieval_size": 10,
         "FEx": 0.8,
-        "drop":0.2,
-        "heads": 8
+        "out_pth": "/data/aditya/JANe/data_files/"
     }
 
 def get_weights_file_name(config, epoch):

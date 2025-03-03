@@ -6,14 +6,19 @@ import io
 import torchvision.transforms as v2
 from datasets import Image
 from tokenizer import SimpleTokenizer
-import pdb
+from config import get_config
+conf = get_config()
+import sys
+sys.path.insert(1, conf["repo_dir"])
+import os
+# import pdb
 
 tokenizer = SimpleTokenizer()
 
 image_transform = v2.Compose(
     [
-        v2.Resize(256),
-        v2.CenterCrop(256),
+        v2.Resize(224),
+        v2.CenterCrop(224),
         v2.ToTensor(),
         v2.Normalize([0.5], [0.5]),
     ]
@@ -27,9 +32,10 @@ def t2i_process_fn(batch):
     batch_size = len(images)
     # print("batch_size",batch_size)
     batch["labels"] = torch.zeros(batch_size, dtype=torch.long)
+    # clip_model = openclip_embeds(conf["model_type"], conf["pretrain"], conf["device"])
     for i in range(len(images)):
         try:
-            images[i] = PIL.Image.open(io.BytesIO(images[i]["bytes"]) if images[i]["bytes"] is not None else images[i]["path"]).convert("RGB")
+            images[i] = PIL.Image.open(io.BytesIO(images[i]["bytes"]) if images[i]["bytes"] is not None else images[i]["path"]).convert('RGB')
         except:
             print("corrupt!!!!")
             images[i] = None
@@ -49,13 +55,13 @@ def t2i_process_fn(batch):
 
 
 def return_cc12_train_dataset():
-    data_files = glob(f"/data/home/shlokmishra/data/cc12m_v2/*.tar")
+    data_files = glob(os.path.join(conf["data_dir"], "*.tar"))
     train_dataset = load_dataset(
         "webdataset",
         data_files=data_files,
-        cache_dir="/tmp",
+        cache_dir=conf["data_dir"],
         split="train",
-        num_proc=12,
+        # streaming=True
     )
 
     # train_dataset = train_dataset.take(1000000)

@@ -13,15 +13,13 @@ class pipeline1(nn.Module):
         self.fcnn = FCNNBlock(embed_size, FEx, embed_size, dropout)
     
     def forward(self, x, y, rx, ry):
-        # get lower triangular mask
-        trg_len = y.shape[-1]
-        mask = torch.tril(torch.ones((trg_len, trg_len))).expand(1, trg_len, trg_len)
-        mask = mask.to("cuda")
+        print("Sizes", x.shape, rx.shape, ry.shape)
+        x = x.reshape((x.size(0), 1, x.size(1)))
 
         # block 1
-        x = self.cross_attention(self.self_attention(x, None), rx, mask)
+        x = self.cross_attention(self.self_attention(x, False), rx, True)
         # block 2
-        x = self.cross_attention(self.self_attention(x, None), ry, mask)
+        x = self.cross_attention(self.self_attention(x, False), ry, True)
         # final
         out = self.fcnn(x)
         return out

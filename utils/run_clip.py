@@ -1,9 +1,32 @@
 import numpy as np
 # from .dassl.coop import load_clip_to_cpu_name
 # from .dassl.clip import clip
+import open_clip
 import torch
 from transformers import CLIPTokenizer, CLIPModel, CLIPProcessor, CLIPTextModel
+
+class openclip_embeds(object):
+    def __init__(self, model_name, pretrain, device):
+        self.device = device
+        self.model, _, self.preprocess = open_clip.create_model_and_transforms(model_name, pretrain)
+        self.model.to(self.device)
+        self.model.eval()
+
+    def preprocessor(self, img):
+        return self.preprocess(img).unsqueeze().to("cuda")
     
+    def forward_img(self, img_tensor):
+        img_tensor.to(self.device)
+        with torch.no_grad():
+            image_features = self.model.encode_image(img_tensor)
+        return image_features.cpu().detach().numpy()
+
+    def forward_txt(self, txt_tensor):
+        txt_tensor.to(self.device)
+        with torch.no_grad():
+            text_features = self.model.encode_text(txt_tensor)
+        return text_features.cpu().detach().numpy()
+
 class clip_embeds(object):
     def __init__(self, backname="openai/clip-vit-base-patch16"):
         super(clip_embeds, self).__init__()
