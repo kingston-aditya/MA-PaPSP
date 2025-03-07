@@ -4,15 +4,15 @@
 
 def get_config():
     return {
-        "batch_size": 200,
+        "batch_size": 256,
         "embed_size": 512,
-        "shard_num": 50,
+        "shard_num": 1,
         "model_type":"ViT-B-16",
-        "pretrain":"openai",
+        "pretrain":"dfn2b",
         "device":"cuda",
         "repo_dir":"/data/aditya/JANe/",
         "retrieval_size": 10,
         "FEx": 0.8,
-        "out_pth": "/data/aditya/iccv_fold/",
-        "data_dir": "/data/datasets/oxford_flowers/"
+        "out_pth": "/data/datasets/final_set/pets/train/dfn/",
+        "data_dir": "/data/datasets/oxford_pets/"
     }

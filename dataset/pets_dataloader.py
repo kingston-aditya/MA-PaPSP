@@ -47,6 +47,31 @@ class return_pets(Dataset):
 
     def __len__(self):
         return len(self.json_obj["test"])
+    
+# flowers train set
+class return_pets_train(Dataset):
+    def __init__(self):
+        # get the val and test split
+        f1 = open(os.path.join(config["data_dir"], "zhou_pets_split_10.json"))
+        self.json_obj = json.load(f1)
+        f1.close()
+    
+    def __getitem__(self, index):
+        # get paths
+        img_pth = os.path.join("/data/datasets/oxford_pets/images/", self.json_obj["train"][index][0])
+
+        # get image features
+        img_out = Image.open(img_pth).convert('RGB')
+        img_tensor = image_transform(img_out)
+
+        # get text features
+        txt = prompt_creater(self.json_obj["train"][index][-1])
+        txt_tensor = tokenizer(txt)
+
+        return img_tensor, txt_tensor
+
+    def __len__(self):
+        return len(self.json_obj["train"])
 
 
 

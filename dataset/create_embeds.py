@@ -3,7 +3,7 @@ from PIL import Image
 import numpy as np
 import os
 # from cc12_cc3_sbu_dataloader import return_cc12_cc3_sbu
-from flowers_dataloader import return_flowers
+from pets_dataloader import return_pets, return_pets_train
 from config import get_config
 conf = get_config()
 import sys
@@ -53,7 +53,7 @@ def get_cc12m_cc3m_sbu(config, batch):
 
         # save files based on numbers
         print("done", i)
-        out_fil_txt = os.path.join(config["out_pth"],"cc12m_txt_shard_"+str(config["pretrain"])+str(int(i//conf["shard_num"]))+".pt")
+        out_fil_txt = os.path.join(config["out_pth"],"cc12m_txt_shard_"+str(config["pretrain"])+str(int(i))+".pt")
         torch.save(b[i], out_fil_txt)
 
 def get_classify(config, batch):
@@ -74,15 +74,16 @@ def get_classify(config, batch):
         b[i] = txt_emd.reshape(batch_size,512)
 
         print("done", i)
-        out_fil_img = os.path.join(config["out_pth"],"flowers_img_shard_"+str(config["pretrain"])+str(int(i))+".pt")
-        out_fil_txt = os.path.join(config["out_pth"],"flowers_txt_shard_"+str(config["pretrain"])+str(int(i))+".pt")
+        # print("path", "flowers_img_shard_"+str(config["pretrain"])+str(int(i))+".pt")
+        out_fil_img = os.path.join(config["out_pth"],"pets_img_shard_"+str(config["pretrain"])+str(int(i))+".pt")
+        out_fil_txt = os.path.join(config["out_pth"],"pets_txt_shard_"+str(config["pretrain"])+str(int(i))+".pt")
         torch.save(a[i], out_fil_img)
         torch.save(b[i], out_fil_txt)
 
 
 if __name__ == "__main__":
     config = get_config()
-    dataset_train = return_flowers()
+    dataset_train = return_pets_train()
     sampler_train = torch.utils.data.DistributedSampler(
         dataset_train, num_replicas=1, rank=0, shuffle=True
     )
