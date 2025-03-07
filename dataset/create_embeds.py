@@ -2,7 +2,7 @@ import torch
 from PIL import Image
 import numpy as np
 import os
-from cc12_dataloader import return_cc12_train_dataset
+from cc12_cc3_sbu_dataloader import return_cc12_cc3_sbu
 from config import get_config
 conf = get_config()
 import sys
@@ -16,7 +16,7 @@ try:
 except ImportError:
     BICUBIC = Image.BICUBIC
 
-def main(config, batch):
+def get_cc12m(config, batch):
     a = {}; b= {}
     clip_model = openclip_embeds(config["model_type"], config["pretrain"], config["device"])
     for i, curr_batch in enumerate(batch):
@@ -39,10 +39,26 @@ def main(config, batch):
             np.save(out_fil_txt, np.asarray(list(b.values())))
             a={}; b={}
 
+def get_cc12m_cc3m_sbu(config, batch):
+    batch_size = config["batch_size"]
+    b = {}
+    clip_model = openclip_embeds(config["model_type"], config["pretrain"], config["device"])
+    for i, curr_batch in enumerate(batch):
+
+        # get text embedding
+        txt_emd = clip_model.forward_txt(curr_batch.to("cuda"))
+        b[i] = torch.reshape(txt_emd, (batch_size,512))
+
+        # save files based on numbers
+        if i%conf["shard_num"] == 0:
+            print("done", int(i//conf["shard_num"]))
+            out_fil_txt = os.path.join(config["out_pth"],"cc12m_txt_shard_"+str(config["pretrain"])+str(int(i//conf["shard_num"]))+".pt")
+            torch.save(b[i], out_fil_txt)
+
 
 if __name__ == "__main__":
     config = get_config()
-    dataset_train = return_cc12_train_dataset()
+    dataset_train = return_cc12_cc3_sbu()
     sampler_train = torch.utils.data.DistributedSampler(
         dataset_train, num_replicas=1, rank=0, shuffle=True
     )
@@ -50,13 +66,13 @@ if __name__ == "__main__":
     data_loader_train = torch.utils.data.DataLoader(
         dataset_train, sampler=sampler_train,
         batch_size=config["batch_size"],
-        num_workers=1,
+        num_workers=12,
         drop_last=True,
     )
 
     # import pdb 
     # pdb.set_trace()
-    main(config, data_loader_train)
+    get_cc12m_cc3m_sbu(config, data_loader_train)
 
 
 

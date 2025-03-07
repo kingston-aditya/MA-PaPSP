@@ -14,5 +14,5 @@ def get_config():
         "retrieval_size": 10,
         "FEx": 0.8,
         "out_pth": "/data/aditya/JANe/data_files/",
-        "data_dir": "/mnt/ssd/"
+        "data_dir": "/data/datasets/retrieval_set"
     }

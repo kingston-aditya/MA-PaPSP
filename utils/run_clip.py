@@ -19,13 +19,13 @@ class openclip_embeds(object):
         img_tensor.to(self.device)
         with torch.no_grad():
             image_features = self.model.encode_image(img_tensor)
-        return image_features.cpu().detach().numpy()
+        return image_features.cpu().detach()
 
     def forward_txt(self, txt_tensor):
         txt_tensor.to(self.device)
         with torch.no_grad():
             text_features = self.model.encode_text(txt_tensor)
-        return text_features.cpu().detach().numpy()
+        return text_features.cpu().detach()
 
 class clip_embeds(object):
     def __init__(self, backname="openai/clip-vit-base-patch16"):
