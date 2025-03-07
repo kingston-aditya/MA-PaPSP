@@ -50,10 +50,9 @@ def get_cc12m_cc3m_sbu(config, batch):
         b[i] = torch.reshape(txt_emd, (batch_size,512))
 
         # save files based on numbers
-        if i%conf["shard_num"] == 0:
-            print("done", int(i//conf["shard_num"]))
-            out_fil_txt = os.path.join(config["out_pth"],"cc12m_txt_shard_"+str(config["pretrain"])+str(int(i//conf["shard_num"]))+".pt")
-            torch.save(b[i], out_fil_txt)
+        print("done", i)
+        out_fil_txt = os.path.join(config["out_pth"],"cc12m_txt_shard_"+str(config["pretrain"])+str(int(i//conf["shard_num"]))+".pt")
+        torch.save(b[i], out_fil_txt)
 
 
 if __name__ == "__main__":
