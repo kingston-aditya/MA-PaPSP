@@ -2,8 +2,8 @@ from torch.utils.data import Dataset, DataLoader
 import os
 import torchvision.transforms as v2
 from tokenizer import SimpleTokenizer
-from config import get_config
-config = get_config()
+import glob
+
 import json
 import os
 from PIL import Image
@@ -20,58 +20,46 @@ image_transform = v2.Compose(
     ]
 )
 
-def prompt_creater(cat):
-    name = "An image of {}, an animal.".format(cat)
-    return name
+DATA_DIR = "/nfshomes/asarkar6/trinity/JANe-project/sugar-crepe/data/*.json"
+IMG_DIR = "/fs/cml-datasets/coco/"
 
-class return_pets(Dataset):
+class return_sugarcrepe(Dataset):
     def __init__(self):
-        # get the val and test split
-        f1 = open(os.path.join(config["data_dir"], "split_zhou_OxfordPets.json"))
-        self.json_obj = json.load(f1)
-        f1.close()
+        all_pths = glob.glob(DATA_DIR)
+
+        self.caps = []
+        self.img_pths = []
+        self.neg_caps = []
+
+        for item in all_pths:
+            # read json files
+            f = open(item)
+            json_obj = json.load(f)
+            f.close()
+
+            # iterate over each json file
+            for _, subitem in enumerate(list(json_obj.keys())):
+                self.caps.append(json_obj[subitem]['caption'])
+                self.img_pths.append(os.path.join(IMG_DIR, "images", f"{json_obj[subitem]['filename']}.jpg"))
+                self.neg_caps.append(json_obj[subitem]['negative_captions'])
     
     def __getitem__(self, index):
-        # get paths
-        img_pth = os.path.join("/data/datasets/oxford_pets/images/", self.json_obj["test"][index][0])
-
         # get image features
+        img_pth = self.img_pths[index]
         img_out = Image.open(img_pth).convert('RGB')
         img_tensor = image_transform(img_out)
 
         # get text features
-        txt = prompt_creater(self.json_obj["test"][index][-1])
+        txt = self.caps[index]
         txt_tensor = tokenizer(txt)
 
-        return img_tensor, txt_tensor
+        neg_txt = self.neg_caps[index]
+        neg_txt_tensor = tokenizer(neg_txt)
+
+        return img_tensor, txt_tensor, neg_txt_tensor
 
     def __len__(self):
-        return len(self.json_obj["test"])
-    
-# flowers train set
-class return_pets_train(Dataset):
-    def __init__(self):
-        # get the val and test split
-        f1 = open(os.path.join(config["data_dir"], "split_zhou_OxfordPets.json"))
-        self.json_obj = json.load(f1)
-        f1.close()
-    
-    def __getitem__(self, index):
-        # get paths
-        img_pth = os.path.join("/data/datasets/oxford_pets/images/", self.json_obj["train"][index][0])
-
-        # get image features
-        img_out = Image.open(img_pth).convert('RGB')
-        img_tensor = image_transform(img_out)
-
-        # get text features
-        txt = prompt_creater(self.json_obj["train"][index][-1])
-        txt_tensor = tokenizer(txt)
-
-        return img_tensor, txt_tensor
-
-    def __len__(self):
-        return len(self.json_obj["train"])
+        return len(self.img_pths)
 
 
 

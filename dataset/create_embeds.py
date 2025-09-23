@@ -2,10 +2,10 @@ import torch
 from PIL import Image
 import numpy as np
 import os
+
 # from cc12_cc3_sbu_dataloader import return_cc12_cc3_sbu
 from pets_dataloader import return_pets, return_pets_train
-from config import get_config
-conf = get_config()
+
 import sys
 sys.path.insert(1, conf["repo_dir"])
 from utils.run_clip import openclip_embeds

@@ -2,8 +2,7 @@ from torch.utils.data import Dataset, DataLoader
 import os
 import torchvision.transforms as v2
 from tokenizer import SimpleTokenizer
-from config import get_config
-config = get_config()
+
 import json
 import os
 from PIL import Image
@@ -20,20 +19,23 @@ image_transform = v2.Compose(
     ]
 )
 
+DATA_DIR = "/nfshomes/asarkar6/trinity/JANe-project/ucf101/"
+
 def prompt_creater(cat):
     name = "An image of {}, an action.".format(cat)
     return name
 
+# ucf101 test set 
 class return_ucf(Dataset):
     def __init__(self):
         # get the val and test split
-        f1 = open(os.path.join(config["data_dir"], "split_zhou_UCF101.json"))
+        f1 = open(os.path.join(DATA_DIR, "split_zhou_UCF101.json"))
         self.json_obj = json.load(f1)
         f1.close()
     
     def __getitem__(self, index):
         # get paths
-        img_pth = os.path.join("/data/datasets/ucf101/UCF-101-midframes/", self.json_obj["test"][index][0])
+        img_pth = os.path.join(DATA_DIR, "UCF-101-midframes", self.json_obj["test"][index][0])
 
         # get image features
         img_out = Image.open(img_pth).convert('RGB')
@@ -48,17 +50,17 @@ class return_ucf(Dataset):
     def __len__(self):
         return len(self.json_obj["test"])
     
-# flowers train set
+# ucf101 train set
 class return_ucf_train(Dataset):
     def __init__(self):
         # get the val and test split
-        f1 = open(os.path.join(config["data_dir"], "split_zhou_UCF101.json"))
+        f1 = open(os.path.join(DATA_DIR, "split_zhou_UCF101.json"))
         self.json_obj = json.load(f1)
         f1.close()
     
     def __getitem__(self, index):
         # get paths
-        img_pth = os.path.join("/data/datasets/ucf101/UCF-101-midframes/", self.json_obj["train"][index][0])
+        img_pth = os.path.join(DATA_DIR, "UCF-101-midframes", self.json_obj["train"][index][0])
 
         # get image features
         img_out = Image.open(img_pth).convert('RGB')

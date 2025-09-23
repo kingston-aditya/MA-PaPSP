@@ -20,6 +20,8 @@ image_transform = v2.Compose(
     ]
 )
 
+DATA_DIR = "/nfshomes/asarkar6/trinity/JANe-project/flowers/"
+
 def prompt_creater(cat):
     name = "An image of {}, a flower.".format(cat)
     return name
@@ -28,13 +30,13 @@ def prompt_creater(cat):
 class return_flowers(Dataset):
     def __init__(self):
         # get the val and test split
-        f1 = open(os.path.join(config["data_dir"], "split_zhou_OxfordFlowers.json"))
+        f1 = open(os.path.join(DATA_DIR, "split_zhou_OxfordFlowers.json"))
         self.json_obj = json.load(f1)
         f1.close()
     
     def __getitem__(self, index):
         # get paths
-        img_pth = os.path.join("/data/datasets/oxford_flowers/jpg/", self.json_obj["test"][index][0])
+        img_pth = os.path.join(DATA_DIR, "jpg", self.json_obj["test"][index][0])
 
         # get image features
         img_out = Image.open(img_pth).convert('RGB')
@@ -53,13 +55,13 @@ class return_flowers(Dataset):
 class return_flowers_train(Dataset):
     def __init__(self):
         # get the val and test split
-        f1 = open(os.path.join(config["data_dir"], "zhou_pets_split_10.json"))
+        f1 = open(os.path.join(DATA_DIR, "split_zhou_OxfordFlowers.json"))
         self.json_obj = json.load(f1)
         f1.close()
     
     def __getitem__(self, index):
         # get paths
-        img_pth = os.path.join("/data/datasets/oxford_flowers/jpg/", self.json_obj["train"][index][0])
+        img_pth = os.path.join(DATA_DIR, "jpg", self.json_obj["train"][index][0])
 
         # get image features
         img_out = Image.open(img_pth).convert('RGB')

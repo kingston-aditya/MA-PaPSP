@@ -1,18 +1,15 @@
 from torch.utils.data import Dataset, DataLoader
-import torch
-import numpy as np
 import os
-from tokenizer import SimpleTokenizer
 import torchvision.transforms as v2
+from tokenizer import SimpleTokenizer
+import glob
+from datasets import load_dataset
 
-import pandas as pd
 import os
 from PIL import Image
 # import pdb 
 
 tokenizer = SimpleTokenizer()
-
-DATA_DIR = "/nfshomes/asarkar6/trinity/JANe-project/flickr/flickr30k"
 
 image_transform = v2.Compose(
     [
@@ -23,26 +20,30 @@ image_transform = v2.Compose(
     ]
 )
 
-class return_flickr(Dataset):
+DATA_DIR = "/nfshomes/asarkar6/trinity/JANe-project/aro/ARO-Visual-Attribution/data/"
+
+class return_aroattribute(Dataset):
     def __init__(self):
-        self.df = pd.read_csv(os.path.join(DATA_DIR, "flickr_annotations_30k.csv"), dtype=object)
+        self.df = load_dataset("parquet", data_files=glob.glob(os.path.join(DATA_DIR, "*.parquet")), split="train")
     
     def __getitem__(self, index):
-        # get paths
-        img_pth = os.path.join(DATA_DIR, "flickr30k-images", self.df["filename"][index])
-
         # get image features
-        img_out = Image.open(img_pth).convert('RGB')
+        img_out = self.df[index]['image']
         img_tensor = image_transform(img_out)
 
         # get text features
-        txt = self.df["raw"][index]
+        txt = self.df[index]['true_caption']
         txt_tensor = tokenizer(txt)
 
-        return img_tensor, txt_tensor
+        neg_txt = self.df[index]['false_caption']
+        neg_txt_tensor = tokenizer(neg_txt)
+
+        return img_tensor, txt_tensor, neg_txt_tensor
 
     def __len__(self):
         return len(self.df)
+    
+
 
 
 
