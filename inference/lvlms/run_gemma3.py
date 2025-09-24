@@ -15,7 +15,7 @@ import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint
 import transformers
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 
 import accelerate
 from accelerate import Accelerator
@@ -30,9 +30,7 @@ from itertools import product
 
 import sys
 sys.path.insert(1, "/nfshomes/asarkar6/aditya/JANe/")
-from dataset import coco_dataloader, flickr_dataloader, flowers_dataloader, pets_dataloader, ucf_dataloader
-from dataset import foil_dataloader, arochecklist_dataloader, winoground_dataloader, sugarcrepe_dataloader, whatsup_dataloader
-from dataset import cc12_cc3_sbu_dataloader
+from dataset import coco_dataloader, flickr_dataloader
 
 logger = get_logger(__name__, log_level="INFO")
 
@@ -111,20 +109,15 @@ def get_the_dataset(dataset_name):
 
     return precomputed_dataset
 
-def create_messages(prompts):
-    main_prompt1 = "You are Qwen, created by Alibaba Cloud. You are an intelligent and helpful AI assistant that can do the following task."
-    main_prompt2 = "Given an input context describing a scene, your task is to identify all the noun phrases in the sentence and then create a new sentence using different noun phrases."
-    main_prompt3 = "The new sentence must meet the following two requirements: \n 1. It must be fluent and grammatically correct. \n 2. It must make logical sense."
-    main_prompt4 = "Here is one example: \n Sentence: A man and a woman are walking together. \n Answer: A child and a dog are walking together."
-    main_prompt5 = "Explanation: There are two noun phrases in the original sentence: man and woman. In the new sentence, they are replaced with child and dog, respectively. The new sentence is fluent and grammatically correct, and it makes logical sense."
-    main_prompt6 = "Generate 5 sentences for this prompt. Do NOT give any explanations. \n Sentence:"
-    main_prompt = main_prompt1 + "\n" + main_prompt2 + "\n" + main_prompt3 + "\n" + main_prompt4 + "\n" + main_prompt5 
-
+def create_messages(images):
     messages = []
-    for prompt in prompts:
+    for image in images:
         final_msg = [
-            {"role": "system", "content": main_prompt},
-            {"role": "user", "content": main_prompt6 + prompt + "\n Answer:"},
+            {"role": "system", "content": [{"type": "text", "text": "You are a helpful assistant."}]},
+            {"role": "user", "content": [
+                                {"type": "image", "image": image},
+                                {"type": "text", "text": "Caption this image in few words."}
+                            ]},
         ]
         messages.append(final_msg)
     return messages
@@ -175,8 +168,7 @@ def main(args):
         weight_dtype = torch.bfloat16
 
     # load the clip models
-    llm_model = AutoModelForCausalLM.from_pretrained(args.pretrained_model_name_or_path, torch_dtype=weight_dtype, cache_dir=args.cache_dir)
-    tokenizer = AutoTokenizer.from_pretrained(args.pretrained_model_name_or_path)
+    llm_model = pipeline("image-text-to-text", model=args.pretrained_model_name_or_path, torch_dtype=torch.bfloat16)
 
     # no need to train image encoders
     llm_model.requires_grad_(False)
@@ -184,8 +176,10 @@ def main(args):
     
     def collate_fn_cap(batch):
         prompts = [item["prompts"] for item in batch]
+        images = [item["images"] for item in batch]
         return {
-            "prompts": prompts
+            "prompts": prompts,
+            "images": images,
         }
     
     # DataLoaders creation.
@@ -218,21 +212,17 @@ def main(args):
     # Do inference!
     neg_txt_caps = []
     for _, batch in enumerate(tqdm(train_dataloader, desc="Inferring")):
-        prompts = batch["prompts"]
+        images = batch["images"]
 
         with torch.no_grad(), torch.amp.autocast():
             # encode text prompt
-            output_prompts = create_messages(prompts)
-            output_prompts = tokenizer.apply_chat_template(output_prompts, tokenize=False, aadd_generation_prompt=True)
-
-            model_inputs = tokenizer(output_prompts, return_tensors="pt", padding="max_length", truncation=True).to(accelerator.device)
-            generated_ids = llm_model.generate(**model_inputs, max_new_tokens=512)
-            generated_ids = [output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)]
+            output_prompts = create_messages(images)
+            output_prompts = llm_model(text=output_prompts, max_new_tokens=200)
 
             # decode text prompt
-            neg_txt_caps.append(tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0])
+            neg_txt_caps.append(output_prompts[0]['generated_text'][-1]["content"])
 
-    np.save(os.path.join(args.output_dir, f"{args.dataset_name}_qwen1b_negtxt_caps.npy"), np.array(neg_txt_caps))
+    np.save(os.path.join(args.output_dir, f"{args.dataset_name}_gemma3_negtxt_caps.npy"), np.array(neg_txt_caps))
     accelerator.end_training()
 
 if __name__ == "__main__":

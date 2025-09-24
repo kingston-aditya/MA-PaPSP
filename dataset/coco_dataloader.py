@@ -2,26 +2,14 @@ from torch.utils.data import Dataset, DataLoader
 import torch
 import numpy as np
 import os
-from tokenizer import SimpleTokenizer
 import torchvision.transforms as v2
 
 import json
 import os
 from PIL import Image
-# import pdb 
-
-tokenizer = SimpleTokenizer()
+import pdb 
 
 DATA_DIR = "/fs/cml-datasets/coco/"
-
-image_transform = v2.Compose(
-    [
-        v2.Resize(224),
-        v2.CenterCrop(224),
-        v2.ToTensor(),
-        v2.Normalize([0.5], [0.5]),
-    ]
-)
 
 class return_coco(Dataset):
     def __init__(self):
@@ -32,19 +20,34 @@ class return_coco(Dataset):
     def __getitem__(self, index):
         # get text features
         txt = self.json_obj["annotations"][index]["caption"]
-        txt_tensor = tokenizer(txt)
 
         # get paths
-        img_pth = os.path.join(DATA_DIR, "images", f"00000{self.json_obj["annotations"][index]["image_id"]}.jpg")
-
-        # get image features
+        num = f"{self.json_obj['annotations'][index]['image_id']:012d}"
+        img_pth = os.path.join(DATA_DIR, "images/val2017", f"{num}.jpg")
         img_out = Image.open(img_pth).convert('RGB')
-        img_tensor = image_transform(img_out)
 
-        return img_tensor, txt_tensor
+        return {"prompts": txt, "images": img_out}
 
     def __len__(self):
         return len(self.json_obj["annotations"])
+    
+# def collate_fn_cap(batch):
+#         prompts = [item["prompts"] for item in batch]
+#         images = [item["images"] for item in batch]
+#         return {
+#             "prompts": prompts,
+#             "images": images
+#         }
+
+# if __name__ == "__main__":
+#     dataset = return_coco()
+#     dataloader = DataLoader(dataset, batch_size=4, shuffle=False, collate_fn=collate_fn_cap, num_workers=4)
+
+#     for i, batch in enumerate(dataloader):
+#         pdb.set_trace()
+#         print(i, batch["prompts"], batch["images"])
+#         if i == 2:
+#             break
 
 
 

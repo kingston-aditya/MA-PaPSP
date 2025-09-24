@@ -56,15 +56,49 @@ def parse_args():
         help="Path to pretrained model or model identifier from huggingface.co/models.",
     )
     parser.add_argument(
-        "--data_dir",
+        "--data",
         type=str,
-        default="/nfshomes/asarkar6/aditya/PRISM/backgrounds/",
+        default="coco",
         help=(
             "The name of the Dataset (from the HuggingFace hub) to train on (could be your own, possibly private,"
             " dataset). It can also be a path pointing to a local copy of a dataset in your filesystem,"
             " or to a folder containing files that 🤗 Datasets can understand."
         ),
     )
+
+    parser.add_argument(
+        "--model_name",
+        type=str,
+        default="blip1",
+        help=(
+            "The name of the Dataset (from the HuggingFace hub) to train on (could be your own, possibly private,"
+            " dataset). It can also be a path pointing to a local copy of a dataset in your filesystem,"
+            " or to a folder containing files that 🤗 Datasets can understand."
+        ),
+    )
+
+    parser.add_argument(
+        "--logging_dir",
+        type=str,
+        default="logs",
+        help=(
+            "The name of the Dataset (from the HuggingFace hub) to train on (could be your own, possibly private,"
+            " dataset). It can also be a path pointing to a local copy of a dataset in your filesystem,"
+            " or to a folder containing files that 🤗 Datasets can understand."
+        ),
+    )
+
+    parser.add_argument(
+        "--dataloader_num_workers",
+        type=int,
+        default=12,
+        help=(
+            "The name of the Dataset (from the HuggingFace hub) to train on (could be your own, possibly private,"
+            " dataset). It can also be a path pointing to a local copy of a dataset in your filesystem,"
+            " or to a folder containing files that 🤗 Datasets can understand."
+        ),
+    )
+
     parser.add_argument(
         "--output_dir",
         type=str,
@@ -81,7 +115,7 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=None, help="A seed for reproducible training.")
 
     parser.add_argument(
-        "--batch_size", type=int, default=16, help="Batch size (per device) for the training dataloader."
+        "--train_batch_size", type=int, default=16, help="Batch size (per device) for the training dataloader."
     )
 
     parser.add_argument(
@@ -109,24 +143,6 @@ def get_the_dataset(dataset_name):
 
     return precomputed_dataset
 
-def create_messages(prompts, images):
-    main_prompt1 = "You are Qwen, created by Alibaba Cloud. You are an intelligent and helpful AI assistant that can do the following task."
-    main_prompt2 = "Given an input context describing a scene, your task is to identify all the noun phrases in the sentence and then create a new sentence using different noun phrases."
-    main_prompt3 = "The new sentence must meet the following two requirements: \n 1. It must be fluent and grammatically correct. \n 2. It must make logical sense."
-    main_prompt4 = "Here is one example: \n Sentence: A man and a woman are walking together. \n Answer: A child and a dog are walking together."
-    main_prompt5 = "Explanation: There are two noun phrases in the original sentence: man and woman. In the new sentence, they are replaced with child and dog, respectively. The new sentence is fluent and grammatically correct, and it makes logical sense."
-    main_prompt6 = "Generate 5 sentences for this prompt. Do NOT give any explanations. \n Sentence:"
-    main_prompt = main_prompt1 + "\n" + main_prompt2 + "\n" + main_prompt3 + "\n" + main_prompt4 + "\n" + main_prompt5 
-
-    messages = []
-    for prompt in prompts:
-        final_msg = [
-            {"role": "system", "content": main_prompt},
-            {"role": "user", "content": main_prompt6 + prompt + "\n Answer:"},
-        ]
-        messages.append(final_msg)
-    return messages
-
 
 def main(args):
     logging_dir = Path(args.output_dir, args.logging_dir)
@@ -134,9 +150,7 @@ def main(args):
     accelerator_project_config = ProjectConfiguration(project_dir=args.output_dir, logging_dir=logging_dir)
 
     accelerator = Accelerator(
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
         mixed_precision=args.mixed_precision,
-        log_with=args.report_to,
         project_config=accelerator_project_config,
     )
 
@@ -198,6 +212,9 @@ def main(args):
             num_workers=args.dataloader_num_workers,
         )
 
+    total_batch_size = args.train_batch_size * accelerator.num_processes
+    args.num_train_epochs = math.ceil(len(train_dataloader) // accelerator.num_processes)
+
     # Prepare everything with our `accelerator`.
     llm_model, train_dataloader = accelerator.prepare(llm_model, train_dataloader)
 
@@ -205,33 +222,43 @@ def main(args):
     llm_model.eval()
 
     # Infer!
-    total_batch_size = args.train_batch_size * accelerator.num_processes
-    args.num_train_epochs = math.ceil(len(train_dataloader) // total_batch_size)
-
     logger.info("***** Running training *****")
     logger.info(f"  Num examples = {len(precomputed_dataset)}")
     logger.info(f"  Num Epochs = {args.num_train_epochs}")
-    logger.info(f"  Instantaneous batch size per device = {args.batch_size}")
+    logger.info(f"  Instantaneous batch size per device = {args.train_batch_size}")
     logger.info(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}")
     logger.info(f"  Total optimization steps = {args.num_train_epochs}")
 
+    progress_bar = tqdm(
+        range(0, args.num_train_epochs),
+        initial=0,
+        desc="Inferring",
+        # Only show the progress bar once on each machine.
+        disable=not accelerator.is_local_main_process,
+    )
+
     # Do inference!
     neg_txt_caps = []
-    for _, batch in enumerate(tqdm(train_dataloader, desc="Inferring")):
+    for _, batch in enumerate(train_dataloader):
         prompts = batch["prompts"]
         images = batch["images"]
 
-        with torch.no_grad(), torch.amp.autocast():
+        with torch.no_grad():
             # encode text prompt
-            question = ["Describe the image in detail."] * len(images)
-            inputs = processor(images=images, text=question, return_tensors="pt").to(accelerator.device, weight_dtype)
+            inputs = processor(images=images, return_tensors="pt").to(accelerator.device, weight_dtype)
             output_prompts = llm_model.generate(**inputs)
-            output_prompts = processor.batch_decode(output_prompts, skip_special_tokens=True)[0]
 
             # decode text prompt
+            output_prompts = processor.batch_decode(output_prompts, skip_special_tokens=True)[0]
             neg_txt_caps.append(output_prompts)
 
-    np.save(os.path.join(args.output_dir, f"{args.dataset_name}_blip1_negtxt_caps.npy"), np.array(neg_txt_caps))
+        if accelerator.is_main_process:
+            progress_bar.update(1)
+            progress_bar.set_postfix({"len": len(neg_txt_caps)})
+
+    all_captions = accelerate.gather_object(neg_txt_caps)
+    np.save(os.path.join(args.output_dir, f"{args.data}_{args.model_name}_negtxt_caps.npy"), np.array(all_captions))
+    
     accelerator.end_training()
 
 if __name__ == "__main__":
