@@ -16,11 +16,12 @@ import torch.nn.functional as F
 import torch.utils.checkpoint
 import transformers
 from transformers import AutoProcessor, AutoModelForVisualQuestionAnswering
+from transformers import BlipProcessor, BlipForConditionalGeneration
 
 import accelerate
 from accelerate import Accelerator
 from accelerate.logging import get_logger
-from accelerate.utils import ProjectConfiguration, set_seed
+from accelerate.utils import ProjectConfiguration, set_seed, gather_object
 from tqdm.auto import tqdm
 
 
@@ -187,8 +188,12 @@ def main(args):
         weight_dtype = torch.bfloat16
 
     # load the clip models
-    llm_model = AutoModelForVisualQuestionAnswering.from_pretrained(args.pretrained_model_name_or_path, torch_dtype=weight_dtype, cache_dir=args.cache_dir)
-    processor = AutoProcessor.from_pretrained(args.pretrained_model_name_or_path)
+    if args.model_name == "blip":
+        llm_model = BlipForConditionalGeneration.from_pretrained(args.pretrained_model_name_or_path, torch_dtype=weight_dtype, cache_dir=args.cache_dir)
+        processor = BlipProcessor.from_pretrained(args.pretrained_model_name_or_path)
+    else:
+        llm_model = AutoModelForVisualQuestionAnswering.from_pretrained(args.pretrained_model_name_or_path, torch_dtype=weight_dtype, cache_dir=args.cache_dir)
+        processor = AutoProcessor.from_pretrained(args.pretrained_model_name_or_path)
 
     # no need to train image encoders
     llm_model.requires_grad_(False)
@@ -197,9 +202,11 @@ def main(args):
     def collate_fn_cap(batch):
         prompts = [item["prompts"] for item in batch]
         images = [item["images"] for item in batch]
+        tags = [item["tags"] for item in batch]
         return {
             "prompts": prompts,
-            "images": images
+            "images": images,
+            "tags": tags
         }
     
     # DataLoaders creation.
@@ -238,10 +245,11 @@ def main(args):
     )
 
     # Do inference!
-    neg_txt_caps = []
-    for _, batch in enumerate(train_dataloader):
+    neg_txt_caps = []; img_tags = []
+    for step, batch in enumerate(train_dataloader):
         prompts = batch["prompts"]
         images = batch["images"]
+        tags = batch["tags"]
 
         with torch.no_grad():
             # encode text prompt
@@ -249,15 +257,20 @@ def main(args):
             output_prompts = llm_model.generate(**inputs)
 
             # decode text prompt
-            output_prompts = processor.batch_decode(output_prompts, skip_special_tokens=True)[0]
-            neg_txt_caps.append(output_prompts)
+            output_prompts = processor.batch_decode(output_prompts, skip_special_tokens=True)
+        
+        neg_txt_caps.extend(output_prompts)
+        img_tags.extend(tags)
 
         if accelerator.is_main_process:
             progress_bar.update(1)
             progress_bar.set_postfix({"len": len(neg_txt_caps)})
 
-    all_captions = accelerate.gather_object(neg_txt_caps)
-    np.save(os.path.join(args.output_dir, f"{args.data}_{args.model_name}_negtxt_caps.npy"), np.array(all_captions))
+    all_captions = gather_object(neg_txt_caps)
+    all_tags = gather_object(img_tags)
+    
+    np.save(os.path.join(args.output_dir, f"{args.data}_{args.model_name}_caps.npy"), np.array(all_captions))
+    np.save(os.path.join(args.output_dir, f"{args.data}_{args.model_name}_tags.npy"), np.array(all_tags))
     
     accelerator.end_training()
 

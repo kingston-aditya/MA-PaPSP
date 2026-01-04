@@ -26,7 +26,10 @@ class return_coco(Dataset):
         img_pth = os.path.join(DATA_DIR, "images/val2017", f"{num}.jpg")
         img_out = Image.open(img_pth).convert('RGB')
 
-        return {"prompts": txt, "images": img_out}
+        # get image ids
+        tag = self.json_obj['annotations'][index]['image_id']
+
+        return {"prompts": txt, "images": img_out, "tags": tag}
 
     def __len__(self):
         return len(self.json_obj["annotations"])

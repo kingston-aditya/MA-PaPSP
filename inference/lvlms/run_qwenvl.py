@@ -21,7 +21,7 @@ from qwen_vl_utils import process_vision_info
 import accelerate
 from accelerate import Accelerator
 from accelerate.logging import get_logger
-from accelerate.utils import ProjectConfiguration, set_seed
+from accelerate.utils import ProjectConfiguration, set_seed, gather_object
 from tqdm.auto import tqdm
 
 
@@ -222,9 +222,11 @@ def main(args):
     def collate_fn_cap(batch):
         prompts = [item["prompts"] for item in batch]
         images = [item["images"] for item in batch]
+        tags = [item["tags"] for item in batch]
         return {
             "prompts": prompts,
             "images": images,
+            "tags": tags
         }
     
     # DataLoaders creation.
@@ -263,10 +265,11 @@ def main(args):
     )
 
     # Do inference!
-    neg_txt_caps = []
-    for _, batch in enumerate(train_dataloader):
+    neg_txt_caps = []; img_tags = []
+    for step, batch in enumerate(train_dataloader):
         prompts = batch["prompts"]
         images = batch["images"]
+        tags = batch["tags"]
 
         with torch.no_grad():
             # encode text prompt
@@ -292,15 +295,19 @@ def main(args):
                 generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
             )
 
-            # decode text prompt
-            neg_txt_caps.append(output_text)
+        # decode text prompt
+        neg_txt_caps.extend(output_text)
+        img_tags.extend(tags)
 
         if accelerator.is_main_process:
             progress_bar.update(1)
             progress_bar.set_postfix({"len": len(neg_txt_caps)})
 
-    all_captions = accelerate.gather_object(neg_txt_caps)
-    np.save(os.path.join(args.output_dir, f"{args.dataset_name}_{args.model_name}_negtxt_caps.npy"), np.array(all_captions))
+    all_captions = gather_object(neg_txt_caps)
+    all_tags = gather_object(img_tags)
+
+    np.save(os.path.join(args.output_dir, f"{args.data}_{args.model_name}_caps.npy"), np.array(all_captions))
+    np.save(os.path.join(args.output_dir, f"{args.data}_{args.model_name}_tags.npy"), np.array(all_tags))
 
     accelerator.end_training()
 

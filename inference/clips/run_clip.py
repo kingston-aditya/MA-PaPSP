@@ -30,9 +30,7 @@ from itertools import product
 
 import sys
 sys.path.insert(1, "/nfshomes/asarkar6/aditya/JANe/")
-from dataset import coco_dataloader, flickr_dataloader, flowers_dataloader, pets_dataloader, ucf_dataloader
-from dataset import foil_dataloader, arochecklist_dataloader, winoground_dataloader, sugarcrepe_dataloader, whatsup_dataloader
-from dataset import cc12_cc3_sbu_dataloader
+from dataset import pets_dataloader
 
 logger = get_logger(__name__, log_level="INFO")
 

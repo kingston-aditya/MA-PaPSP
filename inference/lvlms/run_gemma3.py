@@ -15,7 +15,8 @@ import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint
 import transformers
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+from transformers import AutoProcessor, AutoModelForImageTextToText
+from accelerate.utils import gather_object
 
 import accelerate
 from accelerate import Accelerator
@@ -56,7 +57,7 @@ def parse_args():
         help="Path to pretrained model or model identifier from huggingface.co/models.",
     )
     parser.add_argument(
-        "--data_dir",
+        "--data",
         type=str,
         default="/nfshomes/asarkar6/aditya/PRISM/backgrounds/",
         help=(
@@ -73,6 +74,27 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--logging_dir",
+        type=str,
+        default="logs",
+        help="The output directory where the model predictions and checkpoints will be written.",
+    )
+
+    parser.add_argument(
+        "--model_name",
+        type=str,
+        default="gemma",
+        help="The output directory where the model predictions and checkpoints will be written.",
+    )
+
+    parser.add_argument(
+        "--dataloader_num_workers",
+        type=int,
+        default=12,
+        help="The output directory where the model predictions and checkpoints will be written.",
+    )
+
+    parser.add_argument(
         "--cache_dir",
         type=str,
         default="/nfshomes/asarkar6/trinity/",
@@ -81,7 +103,7 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=None, help="A seed for reproducible training.")
 
     parser.add_argument(
-        "--batch_size", type=int, default=16, help="Batch size (per device) for the training dataloader."
+        "--train_batch_size", type=int, default=16, help="Batch size (per device) for the training dataloader."
     )
 
     parser.add_argument(
@@ -129,9 +151,7 @@ def main(args):
     accelerator_project_config = ProjectConfiguration(project_dir=args.output_dir, logging_dir=logging_dir)
 
     accelerator = Accelerator(
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
         mixed_precision=args.mixed_precision,
-        log_with=args.report_to,
         project_config=accelerator_project_config,
     )
 
@@ -168,7 +188,8 @@ def main(args):
         weight_dtype = torch.bfloat16
 
     # load the clip models
-    llm_model = pipeline("image-text-to-text", model=args.pretrained_model_name_or_path, torch_dtype=torch.bfloat16)
+    llm_model = AutoModelForImageTextToText.from_pretrained(args.pretrained_model_name_or_path, dtype=weight_dtype, cache_dir=args.cache_dir)
+    processor = AutoProcessor.from_pretrained(args.pretrained_model_name_or_path)
 
     # no need to train image encoders
     llm_model.requires_grad_(False)
@@ -177,9 +198,11 @@ def main(args):
     def collate_fn_cap(batch):
         prompts = [item["prompts"] for item in batch]
         images = [item["images"] for item in batch]
+        tags = [item["tags"] for item in batch]
         return {
             "prompts": prompts,
             "images": images,
+            "tags": tags
         }
     
     # DataLoaders creation.
@@ -191,6 +214,10 @@ def main(args):
             batch_size=args.train_batch_size,
             num_workers=args.dataloader_num_workers,
         )
+    
+    # Infer!
+    total_batch_size = args.train_batch_size * accelerator.num_processes
+    args.num_train_epochs = math.ceil(len(train_dataloader) // accelerator.num_processes)
 
     # Prepare everything with our `accelerator`.
     llm_model, train_dataloader = accelerator.prepare(llm_model, train_dataloader)
@@ -198,31 +225,52 @@ def main(args):
     llm_model.to(accelerator.device)
     llm_model.eval()
 
-    # Infer!
-    total_batch_size = args.train_batch_size * accelerator.num_processes
-    args.num_train_epochs = math.ceil(len(train_dataloader) // total_batch_size)
-
     logger.info("***** Running training *****")
     logger.info(f"  Num examples = {len(precomputed_dataset)}")
     logger.info(f"  Num Epochs = {args.num_train_epochs}")
-    logger.info(f"  Instantaneous batch size per device = {args.batch_size}")
+    logger.info(f"  Instantaneous batch size per device = {args.train_batch_size}")
     logger.info(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}")
     logger.info(f"  Total optimization steps = {args.num_train_epochs}")
 
+    progress_bar = tqdm(
+        range(0, args.num_train_epochs),
+        initial=0,
+        desc="Inferring",
+        # Only show the progress bar once on each machine.
+        disable=not accelerator.is_local_main_process,
+    )
+
     # Do inference!
-    neg_txt_caps = []
+    neg_txt_caps = []; img_tags = []
     for _, batch in enumerate(tqdm(train_dataloader, desc="Inferring")):
         images = batch["images"]
+        prompts = batch["prompts"]
+        tags = batch["tags"]
 
-        with torch.no_grad(), torch.amp.autocast():
+        with torch.inference_mode():
             # encode text prompt
             output_prompts = create_messages(images)
-            output_prompts = llm_model(text=output_prompts, max_new_tokens=200)
+            
+            inputs = processor.apply_chat_template(output_prompts, add_generation_prompt=True, padding=True, tokenize=True, return_dict=True, return_tensors="pt")
+            inputs = inputs.to(accelerator.device, weight_dtype)
+            
+            generate_ids = llm_model.generate(**inputs, max_new_tokens=50)
+            output_prompts = processor.batch_decode(generate_ids, skip_special_tokens=True)
+            output_prompts = [txt.split('\n')[-1] for txt in output_prompts]
+        
+        # decode text prompt
+        neg_txt_caps.extend(output_prompts)
+        img_tags.extend(tags)
 
-            # decode text prompt
-            neg_txt_caps.append(output_prompts[0]['generated_text'][-1]["content"])
+        if accelerator.is_main_process:
+            progress_bar.update(1)
+            progress_bar.set_postfix({"len": len(neg_txt_caps)})
 
-    np.save(os.path.join(args.output_dir, f"{args.dataset_name}_gemma3_negtxt_caps.npy"), np.array(neg_txt_caps))
+    all_captions = gather_object(neg_txt_caps)
+    all_tags = gather_object(img_tags)
+
+    np.save(os.path.join(args.output_dir, f"{args.data}_{args.model_name}_caps.npy"), np.array(all_captions))
+    np.save(os.path.join(args.output_dir, f"{args.data}_{args.model_name}_tags.npy"), np.array(all_tags))
     accelerator.end_training()
 
 if __name__ == "__main__":
