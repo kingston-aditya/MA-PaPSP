@@ -1,7 +1,7 @@
 ## Leveraging Data to Say No: Memory Augmented Plug-and-Play Selective Prediction
 
 <p align="center">
-    <img src="assets/teaser.png" width="50%">
+    <img src="assets/teaser.png" width="80%">
 </p>
 
 [Aditya Sarkar](https://kingston-aditya.github.io/) &emsp;
@@ -47,11 +47,11 @@ The code is licensed [CC-by-NC](LICENSE). Third party content pulled from other 
 If you find MA-PaPSP useful for your research and applications, please cite using this BibTeX:
 
 ```bibtex
-@article{sarkar2026mapapsp,
-  title={Transfer between modalities with metaqueries},
-  author={Pan, Xichen and Shukla, Satya Narayan and Singh, Aashu and Zhao, Zhuokai and Mishra, Shlok Kumar and Wang, Jialiang and Xu, Zhiyang and Chen, Jiuhai and Li, Kunpeng and Juefei-Xu, Felix and Hou, Ji and Xie, Saining},
-  journal={arXiv preprint arXiv:2504.06256},
-  year={2025}
+@article{sarkar2026leveraging,
+  title={Leveraging Data to Say No: Memory Augmented Plug-and-Play Selective Prediction},
+  author={Sarkar, Aditya and Li, Yi and Cheng, Jiacheng and Mishra, Shlok and Vasconcelos, Nuno},
+  journal={arXiv preprint arXiv:2601.22570},
+  year={2026}
 }
 ```
 
