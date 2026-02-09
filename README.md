@@ -10,9 +10,9 @@
 [Shlok Kumar Mishra](https://shlokk.github.io/shlokmishra.github.io/) &emsp;
 [Nuno Vasconcelos](http://www.svcl.ucsd.edu/people/nuno/)
 
-__NOTE - The repo is under development.__
-
 <sup>†</sup> - corresponding author
+
+__NOTE - The repo is under development.__
 
 ## Installation
 ```bash
